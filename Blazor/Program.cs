@@ -1,4 +1,6 @@
 using Blazor.Components;
+using ServiceAccess;
+using System.Net.Http.Headers;
 
 namespace Blazor
 {
@@ -7,6 +9,17 @@ namespace Blazor
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            //Register API
+            builder.Services.AddHttpClient<TMDBServiceAccess>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
+
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue(
+                        "Bearer",
+                        builder.Configuration["TMDB:AccessToken"]);
+            });
 
             // Add services to the container.
             builder.Services.AddRazorComponents()
@@ -18,7 +31,6 @@ namespace Blazor
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
 
