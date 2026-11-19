@@ -1,4 +1,6 @@
 <Solution>
   <Project Path="Blazor/Blazor.csproj" />
+  <Project Path="DTO/DTO.csproj" Id="382465e3-2c95-40e3-87f1-408750ad8633" />
   <Project Path="ServiceAccess/ServiceAccess.csproj" />
+  <Project Path="Tests/Tests.csproj" Id="15eb7cf4-6116-4b55-8d9e-d0f495e3606d" />
 </Solution>
