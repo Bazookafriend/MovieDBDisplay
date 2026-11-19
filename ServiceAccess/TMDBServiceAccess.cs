@@ -22,5 +22,11 @@ namespace ServiceAccess
         {
             return await _httpClient.GetFromJsonAsync<MovieCreditsDTO>($"movie/{id}/credits");
         }
+
+        public async Task<List<GenreDTO>> GetAllGenresAsync()
+        {
+            var response = await _httpClient.GetFromJsonAsync<GenreListDTO>("genre/movie/list");
+            return response?.Genres ?? [];
+        }
     }
 }

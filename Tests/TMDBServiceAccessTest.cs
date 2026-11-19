@@ -307,6 +307,34 @@ namespace Tests
             Assert.DoesNotContain(directors, c => c.Job == "Director of Photography");
         }
 
+        [Fact]
+        public async Task GetAllGenresAsync_ReturnsGenresFromApi()
+        {
+            const string json = """
+            {
+              "genres": [
+                { "id": 28, "name": "Action" },
+                { "id": 12, "name": "Adventure" },
+                { "id": 16, "name": "Animation" }
+              ]
+            }
+            """;
+
+            var handler = new RecordingHandler(_ => JsonResponse(json));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            var genres = await service.GetAllGenresAsync();
+
+            var request = Assert.Single(handler.Requests);
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal(new Uri("https://api.themoviedb.org/3/genre/movie/list"), request.RequestUri);
+
+            Assert.Collection(genres,
+                g => { Assert.Equal(28, g.Id); Assert.Equal("Action", g.Name); },
+                g => { Assert.Equal(12, g.Id); Assert.Equal("Adventure", g.Name); },
+                g => { Assert.Equal(16, g.Id); Assert.Equal("Animation", g.Name); });
+        }
+
         private sealed class RecordingHandler : HttpMessageHandler
         {
             private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
