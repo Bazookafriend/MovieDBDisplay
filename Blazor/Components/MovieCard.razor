@@ -1,0 +1,32 @@
+﻿<article class="movie-card">
+    <a class="movie-poster-link" href="movie/@Movie.Id" aria-label="@($"{Movie.Title} details")">
+        @if (!string.IsNullOrEmpty(Movie.PosterPath))
+        {
+            <img class="movie-poster"
+                 src="@($"https://image.tmdb.org/t/p/w342{Movie.PosterPath}")"
+                 alt=""
+                 loading="lazy" />
+        }
+        else
+        {
+            <div class="movie-poster movie-poster-empty" aria-hidden="true">
+                <span>@Movie.Title</span>
+            </div>
+        }
+    </a>
+
+    <div class="movie-info">
+        <h4 class="movie-title">
+            <a href="movie/@Movie.Id">@Movie.Title</a>
+        </h4>
+        <span class="movie-year">@ReleaseYear</span>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public MovieDTO Movie { get; set; } = default!;
+
+    private string ReleaseYear =>
+        Movie.ReleaseDate.Length >= 4 ? Movie.ReleaseDate[..4] : "—";
+}

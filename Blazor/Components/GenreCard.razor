@@ -1,0 +1,92 @@
+﻿@inject TMDBServiceAccess TmdbService
+
+<section class="genre-card">
+    <header class="genre-card-header">
+        <h3 class="genre-title">
+            <a href="movies?genre=@Genre.Id">@Genre.Name</a>
+        </h3>
+        @if (page is not null)
+        {
+            <span class="genre-count">@MovieCountLabel</span>
+        }
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="movie-row">
+            @for (var i = 0; i < 3; i++)
+            {
+                <div class="movie-skeleton"></div>
+            }
+        </div>
+    }
+    else if (hasError)
+    {
+        <p class="genre-message">Couldn't load movies for this genre.</p>
+    }
+    else if (page is null || page.Results.Count == 0)
+    {
+        <p class="genre-message">No movies found for this genre.</p>
+    }
+    else
+    {
+        <div class="movie-row">
+            @foreach (var movie in VisibleMovies)
+            {
+                <MovieCard Movie="movie" @key="movie.Id" />
+            }
+        </div>
+
+        @if (page.Results.Count > 3)
+        {
+            <button type="button" class="load-more" @onclick="LoadMore">Load more</button>
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public GenreDTO Genre { get; set; } = default!;
+
+    private MovieListPageDTO? page;
+    private int offset;
+    private bool isLoading = true;
+    private bool hasError;
+
+    private IEnumerable<MovieDTO> VisibleMovies =>
+        page is null ? [] : page.Results.Skip(offset).Take(3);
+
+    private string MovieCountLabel =>
+        page is null
+            ? ""
+            : page.TotalResults >= 20000
+                ? "20,000+ movies"
+                : $"{page.TotalResults:N0} movies";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            page = await TmdbService.GetMoviesByGenreAsync(Genre.Id);
+        }
+        catch (HttpRequestException)
+        {
+            hasError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void LoadMore()
+    {
+        if (page is null || page.Results.Count == 0)
+            return;
+
+        offset += 3;
+
+        if (offset >= page.Results.Count)
+            offset = 0;
+    }
+}

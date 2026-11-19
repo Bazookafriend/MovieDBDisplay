@@ -1,7 +1,51 @@
 ﻿@page "/"
+@inject TMDBServiceAccess TmdbService
 
-<PageTitle>Home</PageTitle>
+<PageTitle>MovieDB</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="home">
+    <header class="home-header">
+        <h1>Browse by genre</h1>
+        <p class="home-subtitle">Pick a genre and flip through a few movies.</p>
+    </header>
 
-Welcome to your new app.
+    @if (!isLoaded)
+    {
+        <p class="genres-loading">Loading genres…</p>
+    }
+    else if (genres.Count == 0)
+    {
+        <p class="genres-empty">No genres available right now.</p>
+    }
+    else
+    {
+        <div class="genre-list">
+            @foreach (var genre in genres)
+            {
+                <GenreCard Genre="genre" @key="genre.Id" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<GenreDTO> genres = [];
+    private bool isLoaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!RendererInfo.IsInteractive)
+            return;
+
+        try
+        {
+            genres = await TmdbService.GetAllGenresAsync();
+        }
+        catch (HttpRequestException)
+        {
+            genres = [];
+        }
+
+        isLoaded = true;
+    }
+}
