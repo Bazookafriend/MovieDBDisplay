@@ -335,6 +335,148 @@ namespace Tests
                 g => { Assert.Equal(16, g.Id); Assert.Equal("Animation", g.Name); });
         }
 
+        [Fact]
+        public async Task GetMoviesByGenreAsync_MapsPageMetadataAndResults()
+        {
+            const string json = """
+            {
+              "page": 2,
+              "results": [
+                {
+                  "adult": false,
+                  "backdrop_path": "/backdrop1.jpg",
+                  "genre_ids": [28, 12],
+                  "id": 101,
+                  "original_language": "en",
+                  "original_title": "First",
+                  "overview": "First overview",
+                  "popularity": 123.4,
+                  "poster_path": "/poster1.jpg",
+                  "release_date": "2024-01-01",
+                  "title": "First Movie",
+                  "video": false,
+                  "vote_average": 7.1,
+                  "vote_count": 456
+                },
+                {
+                  "adult": false,
+                  "backdrop_path": null,
+                  "genre_ids": [28],
+                  "id": 202,
+                  "original_language": "en",
+                  "original_title": "Second",
+                  "overview": "",
+                  "popularity": 0.5,
+                  "poster_path": null,
+                  "release_date": "",
+                  "title": "Second Movie",
+                  "video": true,
+                  "vote_average": 0,
+                  "vote_count": 0
+                }
+              ],
+              "total_pages": 500,
+              "total_results": 10000
+            }
+            """;
+
+            var handler = new RecordingHandler(_ => JsonResponse(json));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            var result = Assert.IsType<MovieListPageDTO>(await service.GetMoviesByGenreAsync(28, 2));
+
+            Assert.Equal(2, result.Page);
+            Assert.Equal(500, result.TotalPages);
+            Assert.Equal(10000, result.TotalResults);
+            Assert.Equal(2, result.Results.Count);
+            Assert.True(result.HasPreviousPage);
+            Assert.True(result.HasNextPage);
+
+            var first = result.Results[0];
+            Assert.Equal(101, first.Id);
+            Assert.Equal("First Movie", first.Title);
+            Assert.Equal("First overview", first.Overview);
+            Assert.Equal("2024-01-01", first.ReleaseDate);
+            Assert.Equal("/poster1.jpg", first.PosterPath);
+            Assert.Equal("/backdrop1.jpg", first.BackdropPath);
+            Assert.False(first.Video);
+            Assert.Equal(new[] { 28, 12 }, first.GenreIds);
+            Assert.Empty(first.Genres);
+
+            var second = result.Results[1];
+            Assert.Equal(202, second.Id);
+            Assert.True(second.Video);
+            Assert.Null(second.PosterPath);
+            Assert.Null(second.BackdropPath);
+            Assert.Equal(new[] { 28 }, second.GenreIds);
+        }
+
+        [Theory]
+        [InlineData(28, 1)]
+        [InlineData(28, 2)]
+        [InlineData(878, 7)]
+        public async Task GetMoviesByGenreAsync_RequestsDiscoverEndpointWithGenreAndPage(int genreId, int page)
+        {
+            var handler = new RecordingHandler(_ => JsonResponse("{}"));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            await service.GetMoviesByGenreAsync(genreId, page);
+
+            var request = Assert.Single(handler.Requests);
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal(
+                new Uri($"https://api.themoviedb.org/3/discover/movie?with_genres={genreId}&page={page}"),
+                request.RequestUri);
+        }
+
+        [Fact]
+        public async Task GetMoviesByGenreAsync_DefaultsToFirstPage_WhenPageOmitted()
+        {
+            var handler = new RecordingHandler(_ => JsonResponse("{}"));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            await service.GetMoviesByGenreAsync(28);
+
+            var request = Assert.Single(handler.Requests);
+            Assert.Equal(
+                new Uri("https://api.themoviedb.org/3/discover/movie?with_genres=28&page=1"),
+                request.RequestUri);
+        }
+
+        [Fact]
+        public async Task GetMoviesByGenreAsync_ReturnsEmptyPage_WhenNoMoviesMatch()
+        {
+            const string json = """
+            { "page": 1, "results": [], "total_pages": 0, "total_results": 0 }
+            """;
+
+            var handler = new RecordingHandler(_ => JsonResponse(json));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            var result = Assert.IsType<MovieListPageDTO>(await service.GetMoviesByGenreAsync(28));
+
+            Assert.Equal(1, result.Page);
+            Assert.Empty(result.Results);
+            Assert.False(result.HasPreviousPage);
+            Assert.False(result.HasNextPage);
+        }
+
+        [Theory]
+        [InlineData(0, 1)]
+        [InlineData(-1, 1)]
+        [InlineData(28, 0)]
+        [InlineData(28, -5)]
+        public async Task GetMoviesByGenreAsync_Throws_WhenArgumentsAreOutOfRange(int genreId, int page)
+        {
+            var handler = new RecordingHandler(_ => JsonResponse("{}"));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                () => service.GetMoviesByGenreAsync(genreId, page));
+
+            Assert.Empty(handler.Requests);
+        }
+
         private sealed class RecordingHandler : HttpMessageHandler
         {
             private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
