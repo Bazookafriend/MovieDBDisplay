@@ -4,6 +4,10 @@
     min-width: 0;
 }
 
+.movie-poster-wrap {
+    position: relative;
+}
+
 .movie-poster-link {
     display: block;
     border-radius: 0.5rem;
@@ -39,6 +43,57 @@
     font-size: 0.72rem;
     color: rgba(231, 235, 240, 0.55);
     background: linear-gradient(135deg, #1b2029, #232a36);
+}
+
+.wishlist-toggle {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.45rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    color: #fff;
+    background: rgba(8, 10, 14, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(-2px);
+    transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.movie-poster-wrap:hover .wishlist-toggle,
+.movie-poster-wrap:focus-within .wishlist-toggle {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.wishlist-toggle:hover {
+    background: rgba(8, 10, 14, 0.92);
+}
+
+.wishlist-toggle.is-active {
+    opacity: 1;
+    transform: none;
+    color: #ffd166;
+    border-color: rgba(255, 209, 102, 0.6);
+}
+
+.wishlist-toggle:focus-visible {
+    outline: 2px solid #01b4e4;
+    outline-offset: 2px;
+}
+
+/* Touch devices have no hover state. */
+@media (hover: none) {
+    .wishlist-toggle {
+        opacity: 1;
+        transform: none;
+    }
 }
 
 .movie-info {

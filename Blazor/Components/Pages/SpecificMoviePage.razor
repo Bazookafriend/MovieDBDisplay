@@ -1,6 +1,7 @@
 ﻿@page "/movie/{Id:int}"
 @using System.Net
 @inject TMDBServiceAccess TmdbService
+@inject WishlistService Wishlist
 
 <PageTitle>@(movie?.Title ?? "Movie") · MovieDB</PageTitle>
 
@@ -71,6 +72,23 @@
                         </div>
                     }
                 }
+
+                <button type="button"
+                        class="wishlist-button @(IsWishlisted ? "is-active" : null)"
+                        @onclick="ToggleWishlist">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"
+                         fill="currentColor" aria-hidden="true">
+                        @if (IsWishlisted)
+                        {
+                            <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2z" />
+                        }
+                        else
+                        {
+                            <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z" />
+                        }
+                    </svg>
+                    @(IsWishlisted ? "Remove from wishlist" : "Add to wishlist")
+                </button>
             </div>
 
             <div class="movie-details">
@@ -170,6 +188,8 @@
     private bool notFound;
     private string? backdropUrl;
 
+    private bool IsWishlisted => movie is not null && Wishlist.Contains(movie.Id);
+
     private VideoDTO? trailer;
     private bool showTrailer;
 
@@ -260,5 +280,11 @@
         return Preferred(youTube.Where(v => v.Type == "Trailer")).FirstOrDefault()
             ?? Preferred(youTube.Where(v => v.Type == "Teaser")).FirstOrDefault()
             ?? Preferred(youTube).FirstOrDefault();
+    }
+
+    private void ToggleWishlist()
+    {
+        if (movie is not null)
+            Wishlist.Toggle(movie.Id);
     }
 }

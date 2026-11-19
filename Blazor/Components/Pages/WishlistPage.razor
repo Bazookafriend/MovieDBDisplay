@@ -1,0 +1,106 @@
+﻿@page "/wishlist"
+@implements IDisposable
+@inject TMDBServiceAccess TmdbService
+@inject WishlistService Wishlist
+
+<PageTitle>Wishlist · MovieDB</PageTitle>
+
+<div class="wishlist-page">
+    <header class="page-header">
+        <h1>Wishlist</h1>
+        @if (!isLoading && movies.Count > 0)
+        {
+            <p class="page-subtitle">@movies.Count @(movies.Count == 1 ? "movie" : "movies")</p>
+        }
+    </header>
+
+    @if (isLoading)
+    {
+        <p class="state-message">Loading wishlist…</p>
+    }
+    else if (hasError)
+    {
+        <p class="state-message">
+            Couldn't load your wishlist.
+            <button type="button" class="retry-button" @onclick="LoadAsync">Try again</button>
+        </p>
+    }
+    else if (movies.Count == 0)
+    {
+        <p class="state-message">
+            Your wishlist is empty. <a href="/">Browse genres</a> to add some movies.
+        </p>
+    }
+    else
+    {
+        <div class="wishlist-grid">
+            @foreach (var movie in movies)
+            {
+                <MovieCard Movie="movie" @key="movie.Id" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<MovieDTO> movies = [];
+    private bool isLoading = true;
+    private bool hasError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Wishlist.Changed += HandleWishlistChanged;
+
+        if (!RendererInfo.IsInteractive)
+            return;
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        hasError = false;
+
+        try
+        {
+            var ids = Wishlist.MovieIds.ToList();
+
+            var tasks = ids.Select(async id =>
+            {
+                try
+                {
+                    return await TmdbService.GetMovieByIdAsync(id);
+                }
+                catch (HttpRequestException)
+                {
+                    return null;
+                }
+            });
+
+            var results = await Task.WhenAll(tasks);
+            movies = results.Where(m => m is not null).Select(m => m!).ToList();
+        }
+        catch (HttpRequestException)
+        {
+            hasError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void HandleWishlistChanged()
+    {
+        // Cards on this page can only remove, so filter locally instead of refetching.
+        _ = InvokeAsync(() =>
+        {
+            var ids = Wishlist.MovieIds;
+            movies = movies.Where(m => ids.Contains(m.Id)).ToList();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Wishlist.Changed -= HandleWishlistChanged;
+}

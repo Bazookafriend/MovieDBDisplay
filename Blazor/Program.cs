@@ -1,4 +1,5 @@
 using Blazor.Components;
+using Blazor.Services;
 using ServiceAccess;
 using System.Net.Http.Headers;
 
@@ -20,6 +21,9 @@ namespace Blazor
                         "Bearer",
                         builder.Configuration["TMDB:AccessToken"]);
             });
+
+            //Register wishlistservice as session alternative
+            builder.Services.AddScoped<WishlistService>();
 
             // Add services to the container.
             builder.Services.AddRazorComponents()
