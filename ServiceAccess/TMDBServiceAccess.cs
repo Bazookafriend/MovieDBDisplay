@@ -37,5 +37,11 @@ namespace ServiceAccess
             return await _httpClient.GetFromJsonAsync<MovieListPageDTO>(
                 $"discover/movie?with_genres={genreId}&page={page}");
         }
+
+        public async Task<List<VideoDTO>> GetMovieVideosAsync(int movieId)
+        {
+            var response = await _httpClient.GetFromJsonAsync<VideoListDTO>($"movie/{movieId}/videos");
+            return response?.Results ?? [];
+        }
     }
 }

@@ -47,6 +47,30 @@
                 {
                     <div class="movie-poster movie-poster-placeholder" aria-hidden="true">No poster</div>
                 }
+
+                @if (trailer is not null)
+                {
+                    <button type="button" class="trailer-button"
+                            @onclick="() => showTrailer = !showTrailer"
+                            aria-expanded="@showTrailer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                             fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z" />
+                        </svg>
+                        @(showTrailer ? "Hide trailer" : "Watch trailer")
+                    </button>
+
+                    @if (showTrailer)
+                    {
+                        <div class="trailer-frame">
+                            <iframe src="@($"https://www.youtube-nocookie.com/embed/{trailer.Key}?rel=0")"
+                                    title="@($"{movie.Title} trailer")"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowfullscreen
+                                    loading="lazy"></iframe>
+                        </div>
+                    }
+                }
             </div>
 
             <div class="movie-details">
@@ -146,6 +170,9 @@
     private bool notFound;
     private string? backdropUrl;
 
+    private VideoDTO? trailer;
+    private bool showTrailer;
+
     private string ReleaseYear =>
         movie is null
             ? ""
@@ -168,13 +195,16 @@
         hasError = false;
         notFound = false;
         backdropUrl = null;
+        trailer = null;
+        showTrailer = false;
 
         try
         {
             var movieTask = TmdbService.GetMovieByIdAsync(Id);
             var creditsTask = TmdbService.GetMovieCreditsAsync(Id);
+            var videosTask = TmdbService.GetMovieVideosAsync(Id);
 
-            await Task.WhenAll(movieTask, creditsTask);
+            await Task.WhenAll(movieTask, creditsTask, videosTask);
 
             movie = await movieTask;
             var credits = await creditsTask;
@@ -184,6 +214,8 @@
                 notFound = true;
                 return;
             }
+
+            trailer = PickTrailer(await videosTask);
 
             cast = credits?.Cast.OrderBy(c => c.Order).ToList() ?? [];
             directors = credits?.Crew.Where(c => c.Job == "Director").ToList() ?? [];
@@ -208,5 +240,25 @@
         {
             isLoading = false;
         }
+    }
+
+    private static VideoDTO? PickTrailer(IReadOnlyCollection<VideoDTO> videos)
+    {
+        var youTube = videos
+            .Where(v => v.Site == "YouTube" && !string.IsNullOrWhiteSpace(v.Key))
+            .ToList();
+
+        if (youTube.Count == 0)
+            return null;
+
+        static IEnumerable<VideoDTO> Preferred(IEnumerable<VideoDTO> source) =>
+            source
+                .OrderByDescending(v => v.Official)
+                .ThenByDescending(v => v.Language == "en")
+                .ThenByDescending(v => v.PublishedAt);
+
+        return Preferred(youTube.Where(v => v.Type == "Trailer")).FirstOrDefault()
+            ?? Preferred(youTube.Where(v => v.Type == "Teaser")).FirstOrDefault()
+            ?? Preferred(youTube).FirstOrDefault();
     }
 }
