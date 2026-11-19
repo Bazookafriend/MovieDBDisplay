@@ -11,6 +11,9 @@ namespace DTO
         [JsonPropertyName("genres")]
         public List<GenreDTO> Genres { get; set; } = [];
 
+        [JsonPropertyName("genre_ids")]
+        public List<int> GenreIds { get; set; } = [];
+
         [JsonPropertyName("id")]
         public int Id { get; set; }
 
