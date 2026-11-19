@@ -1,12 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
-    <UserSecretsId>8c8d4a0a-f83b-4fb2-b0ff-2fbfb6f8efcb</UserSecretsId>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+		<UserSecretsId>8c8d4a0a-f83b-4fb2-b0ff-2fbfb6f8efcb</UserSecretsId>
+		<AssemblyName>MovieDBDisplay</AssemblyName>
+		<Version>1.0.0</Version>
+	</PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\DTO\DTO.csproj" />
