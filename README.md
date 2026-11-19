@@ -6,7 +6,7 @@ A Blazor Web App that displays movies from MovieDB.
 
 1\. Sign up at https://www.themoviedb.org/signup 
 
-2\. Download MovieDBDisplay-win-x64.zip fromt latest release and extract.
+2\. Download MovieDBDisplay-win-x64.zip from latest release and extract.
 
 3\. Open appsettings.json in Notepad.
 
