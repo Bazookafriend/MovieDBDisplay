@@ -17,5 +17,10 @@ namespace ServiceAccess
         {
             return await _httpClient.GetFromJsonAsync<MovieDTO>($"movie/{id}");
         }
+
+        public async Task<MovieCreditsDTO?> GetMovieCreditsAsync(int id)
+        {
+            return await _httpClient.GetFromJsonAsync<MovieCreditsDTO>($"movie/{id}/credits");
+        }
     }
 }

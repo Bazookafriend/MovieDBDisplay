@@ -8,6 +8,83 @@ namespace Tests
 {
     public class TMDBServiceAccessTest
     {
+        private const string CreditsJson = """
+            {
+              "id": 550,
+              "cast": [
+                {
+                  "adult": false,
+                  "gender": 2,
+                  "id": 819,
+                  "known_for_department": "Acting",
+                  "name": "Edward Norton",
+                  "original_name": "Edward Norton",
+                  "popularity": 26.99,
+                  "profile_path": "/edward.jpg",
+                  "cast_id": 4,
+                  "character": "The Narrator",
+                  "credit_id": "cast-credit-1",
+                  "order": 0
+                },
+                {
+                  "adult": false,
+                  "gender": 2,
+                  "id": 287,
+                  "known_for_department": "Acting",
+                  "name": "Brad Pitt",
+                  "original_name": "Brad Pitt",
+                  "popularity": 45.202,
+                  "profile_path": "/brad.jpg",
+                  "cast_id": 5,
+                  "character": "Tyler Durden",
+                  "credit_id": "cast-credit-2",
+                  "order": 1
+                }
+              ],
+              "crew": [
+                {
+                  "adult": false,
+                  "gender": 2,
+                  "id": 7467,
+                  "known_for_department": "Directing",
+                  "name": "David Fincher",
+                  "original_name": "David Fincher",
+                  "popularity": 20.5,
+                  "profile_path": "/fincher.jpg",
+                  "credit_id": "crew-credit-1",
+                  "department": "Directing",
+                  "job": "Director"
+                },
+                {
+                  "adult": false,
+                  "gender": 2,
+                  "id": 7468,
+                  "known_for_department": "Camera",
+                  "name": "Jeff Cronenweth",
+                  "original_name": "Jeff Cronenweth",
+                  "popularity": 3.1,
+                  "profile_path": null,
+                  "credit_id": "crew-credit-2",
+                  "department": "Camera",
+                  "job": "Director of Photography"
+                },
+                {
+                  "adult": false,
+                  "gender": 2,
+                  "id": 376,
+                  "known_for_department": "Production",
+                  "name": "Arnon Milchan",
+                  "original_name": "Arnon Milchan",
+                  "popularity": 2.931,
+                  "profile_path": "/arnon.jpg",
+                  "credit_id": "crew-credit-3",
+                  "department": "Production",
+                  "job": "Executive Producer"
+                }
+              ]
+            }
+            """;
+
         private static HttpClient CreateClient(HttpMessageHandler handler) =>
             new(handler) { BaseAddress = new Uri("https://api.themoviedb.org/3/") };
 
@@ -116,6 +193,118 @@ namespace Tests
             Assert.Null(result.BackdropPath);
             Assert.Null(result.PosterPath);
             Assert.Empty(result.Genres);
+        }
+
+        [Fact]
+        public async Task GetMovieCreditsAsync_MapsApiResponseToCastAndCrew()
+        {
+            var handler = new RecordingHandler(_ => JsonResponse(CreditsJson));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            var result = Assert.IsType<MovieCreditsDTO>(await service.GetMovieCreditsAsync(550));
+
+            Assert.Equal(550, result.Id);
+            Assert.Equal(2, result.Cast.Count);
+            Assert.Equal(3, result.Crew.Count);
+
+            var actor = result.Cast[0];
+            Assert.Equal(819, actor.Id);
+            Assert.Equal("Edward Norton", actor.Name);
+            Assert.Equal("Edward Norton", actor.OriginalName);
+            Assert.Equal("Acting", actor.KnownForDepartment);
+            Assert.Equal(2, actor.Gender);
+            Assert.False(actor.Adult);
+            Assert.Equal(26.99, actor.Popularity);
+            Assert.Equal("/edward.jpg", actor.ProfilePath);
+            Assert.Equal("cast-credit-1", actor.CreditId);
+            Assert.Equal(4, actor.CastId);
+            Assert.Equal("The Narrator", actor.Character);
+            Assert.Equal(0, actor.Order);
+
+            Assert.Equal("Brad Pitt", result.Cast[1].Name);
+            Assert.Equal(1, result.Cast[1].Order);
+
+            var director = result.Crew[0];
+            Assert.Equal(7467, director.Id);
+            Assert.Equal("David Fincher", director.Name);
+            Assert.Equal("Directing", director.KnownForDepartment);
+            Assert.Equal("crew-credit-1", director.CreditId);
+            Assert.Equal("Directing", director.Department);
+            Assert.Equal("Director", director.Job);
+
+            // Unknown/null optional values stay null rather than throwing.
+            Assert.Null(result.Crew[1].ProfilePath);
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(550)]
+        [InlineData(999999)]
+        public async Task GetMovieCreditsAsync_RequestsCreditsEndpointForId(int id)
+        {
+            var handler = new RecordingHandler(_ => JsonResponse("""{ "id": 0 }"""));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            await service.GetMovieCreditsAsync(id);
+
+            var request = Assert.Single(handler.Requests);
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal(new Uri($"https://api.themoviedb.org/3/movie/{id}/credits"), request.RequestUri);
+        }
+
+        [Fact]
+        public async Task GetMovieCreditsAsync_ReturnsNull_WhenApiReturnsNullBody()
+        {
+            var handler = new RecordingHandler(_ => JsonResponse("null"));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            var result = await service.GetMovieCreditsAsync(1);
+
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public async Task GetMovieCreditsAsync_ThrowsHttpRequestException_WhenApiReturnsNotFound()
+        {
+            var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            var exception = await Assert.ThrowsAsync<HttpRequestException>(
+                () => service.GetMovieCreditsAsync(1));
+
+            Assert.Equal(HttpStatusCode.NotFound, exception.StatusCode);
+        }
+
+        [Theory]
+        [InlineData("""{ "id": 7 }""")]
+        [InlineData("""{ "id": 7, "cast": [], "crew": [] }""")]
+        public async Task GetMovieCreditsAsync_UsesEmptyCollections_WhenCastAndCrewAreMissingOrEmpty(string json)
+        {
+            var handler = new RecordingHandler(_ => JsonResponse(json));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            var result = Assert.IsType<MovieCreditsDTO>(await service.GetMovieCreditsAsync(7));
+
+            Assert.Equal(7, result.Id);
+            Assert.NotNull(result.Cast);
+            Assert.Empty(result.Cast);
+            Assert.NotNull(result.Crew);
+            Assert.Empty(result.Crew);
+        }
+
+        [Fact]
+        public async Task GetMovieCreditsAsync_ProvidesDirectorsForFilteringByJob()
+        {
+            var handler = new RecordingHandler(_ => JsonResponse(CreditsJson));
+            var service = new TMDBServiceAccess(CreateClient(handler));
+
+            var credits = Assert.IsType<MovieCreditsDTO>(await service.GetMovieCreditsAsync(550));
+
+            var directors = credits.Crew.Where(c => c.Job == "Director").ToList();
+
+            var director = Assert.Single(directors);
+            Assert.Equal("David Fincher", director.Name);
+            Assert.DoesNotContain(directors, c => c.Job == "Director of Photography");
         }
 
         private sealed class RecordingHandler : HttpMessageHandler
