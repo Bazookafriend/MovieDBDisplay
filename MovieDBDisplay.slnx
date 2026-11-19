@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Blazor/Blazor.csproj" />
+  <Project Path="ServiceAccess/ServiceAccess.csproj" />
+</Solution>
