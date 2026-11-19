@@ -1,5 +1,212 @@
-﻿<h3>SpecificMoviePage</h3>
+﻿@page "/movie/{Id:int}"
+@using System.Net
+@inject TMDBServiceAccess TmdbService
+
+<PageTitle>@(movie?.Title ?? "Movie") · MovieDB</PageTitle>
+
+<div class="movie-page">
+    @if (isLoading)
+    {
+        <p class="state-message">Loading movie…</p>
+    }
+    else if (notFound)
+    {
+        <h1>Movie not found</h1>
+        <p class="state-message">We couldn't find that movie. <a href="/">Back to genres</a>.</p>
+    }
+    else if (hasError || movie is null)
+    {
+        <p class="state-message">
+            Couldn't load this movie.
+            <button type="button" class="retry-button" @onclick="LoadAsync">Try again</button>
+        </p>
+    }
+    else
+    {
+        @if (backdropUrl is not null)
+        {
+            <div class="movie-backdrop" style="background-image: url('@backdropUrl');" aria-hidden="true"></div>
+        }
+        
+        <header class="movie-header">
+            <h1>@movie.Title</h1>
+            <span class="movie-year-separator" aria-hidden="true">|</span>
+            <span class="movie-year">@ReleaseYear</span>
+        </header>
+
+        <div class="movie-main">
+            <div class="movie-poster-wrap">
+                @if (!string.IsNullOrEmpty(movie.PosterPath))
+                {
+                    <img class="movie-poster"
+                         src="@($"https://image.tmdb.org/t/p/w500{movie.PosterPath}")"
+                         alt="@($"{movie.Title} poster")"
+                         loading="lazy" />
+                }
+                else
+                {
+                    <div class="movie-poster movie-poster-placeholder" aria-hidden="true">No poster</div>
+                }
+            </div>
+
+            <div class="movie-details">
+                <section class="movie-section">
+                    <h2 class="section-label">Genres</h2>
+                    @if (movie.Genres.Count > 0)
+                    {
+                        <div class="genre-chips">
+                            @foreach (var genre in movie.Genres)
+                            {
+                                <a class="genre-chip" href="movies?genre=@genre.Id">@genre.Name</a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="muted">No genres listed.</p>
+                    }
+                </section>
+
+                <section class="movie-section">
+                    <h2 class="section-label">Director@(directors.Count > 1 ? "s" : "")</h2>
+                    <p class="directors">
+                        @(directors.Count > 0
+                            ? string.Join(", ", directors.Select(d => d.Name))
+                            : "Unknown")
+                    </p>
+                </section>
+
+                <section class="movie-section">
+                    <h2 class="section-label">Overview</h2>
+                    <p class="overview">
+                        @(string.IsNullOrWhiteSpace(movie.Overview) ? "No overview available." : movie.Overview)
+                    </p>
+                </section>
+            </div>
+        </div>
+
+        <section class="credits">
+            <h2 class="credits-heading">Cast</h2>
+            @if (cast.Count > 0)
+            {
+                <ul class="cast-grid">
+                    @foreach (var actor in cast)
+                    {
+                        <li class="cast-item">
+                            <span class="cast-name">@actor.Name</span>
+                            @if (!string.IsNullOrWhiteSpace(actor.Character))
+                            {
+                                <span class="cast-character">as @actor.Character</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="muted">No cast info.</p>
+            }
+        </section>
+
+        <section class="credits">
+            <h2 class="credits-heading">Crew</h2>
+            @if (crewGroups.Count > 0)
+            {
+                @foreach (var group in crewGroups)
+                {
+                    <div class="crew-group">
+                        <h3>@group.Key</h3>
+                        <ul class="crew-list">
+                            @foreach (var member in group.OrderBy(c => c.Name))
+                            {
+                                <li class="crew-item">@member.Name <span class="crew-job">— @member.Job</span></li>
+                            }
+                        </ul>
+                    </div>
+                }
+            }
+            else
+            {
+                <p class="muted">No crew info.</p>
+            }
+        </section>
+    }
+</div>
 
 @code {
+    [Parameter]
+    public int Id { get; set; }
 
+    private MovieDTO? movie;
+    private List<CastDTO> cast = [];
+    private List<CrewDTO> directors = [];
+    private List<IGrouping<string, CrewDTO>> crewGroups = [];
+    private bool isLoading = true;
+    private bool hasError;
+    private bool notFound;
+    private string? backdropUrl;
+
+    private string ReleaseYear =>
+        movie is null
+            ? ""
+            : movie.ReleaseDate.Length >= 4
+                ? movie.ReleaseDate[..4]
+                : "—";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Skip the prerender pass; the interactive pass does the real fetch once.
+        if (!RendererInfo.IsInteractive)
+            return;
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        hasError = false;
+        notFound = false;
+        backdropUrl = null;
+
+        try
+        {
+            var movieTask = TmdbService.GetMovieByIdAsync(Id);
+            var creditsTask = TmdbService.GetMovieCreditsAsync(Id);
+
+            await Task.WhenAll(movieTask, creditsTask);
+
+            movie = await movieTask;
+            var credits = await creditsTask;
+
+            if (movie is null)
+            {
+                notFound = true;
+                return;
+            }
+
+            cast = credits?.Cast.OrderBy(c => c.Order).ToList() ?? [];
+            directors = credits?.Crew.Where(c => c.Job == "Director").ToList() ?? [];
+            crewGroups = credits?.Crew
+                .GroupBy(c => c.Department)
+                .OrderBy(g => g.Key)
+                .ToList() ?? [];
+
+            backdropUrl = string.IsNullOrEmpty(movie.BackdropPath)
+            ? null
+            : $"https://image.tmdb.org/t/p/w1280{movie.BackdropPath}";
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            notFound = true;
+        }
+        catch (HttpRequestException)
+        {
+            hasError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
 }
