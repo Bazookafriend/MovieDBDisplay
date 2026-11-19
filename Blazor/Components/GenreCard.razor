@@ -5,9 +5,9 @@
         <h3 class="genre-title">
             <a href="movies?genre=@Genre.Id">@Genre.Name</a>
         </h3>
-        @if (page is not null)
+        @if (moviePage is not null)
         {
-            <span class="genre-count">@MovieCountLabel</span>
+            <span class="genre-count">@moviePage.TotalCountLabel</span>
         }
     </header>
 
@@ -24,7 +24,7 @@
     {
         <p class="genre-message">Couldn't load movies for this genre.</p>
     }
-    else if (page is null || page.Results.Count == 0)
+    else if (moviePage is null || moviePage.Results.Count == 0)
     {
         <p class="genre-message">No movies found for this genre.</p>
     }
@@ -37,7 +37,7 @@
             }
         </div>
 
-        @if (page.Results.Count > 3)
+        @if (moviePage.Results.Count > 3)
         {
             <button type="button" class="load-more" @onclick="LoadMore">Load more</button>
         }
@@ -48,26 +48,19 @@
     [Parameter, EditorRequired]
     public GenreDTO Genre { get; set; } = default!;
 
-    private MovieListPageDTO? page;
+    private MovieListPageDTO? moviePage;
     private int offset;
     private bool isLoading = true;
     private bool hasError;
 
     private IEnumerable<MovieDTO> VisibleMovies =>
-        page is null ? [] : page.Results.Skip(offset).Take(3);
-
-    private string MovieCountLabel =>
-        page is null
-            ? ""
-            : page.TotalResults >= 20000
-                ? "20,000+ movies"
-                : $"{page.TotalResults:N0} movies";
+        moviePage is null ? [] : moviePage.Results.Skip(offset).Take(3);
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            page = await TmdbService.GetMoviesByGenreAsync(Genre.Id);
+            moviePage = await TmdbService.GetMoviesByGenreAsync(Genre.Id);
         }
         catch (HttpRequestException)
         {
@@ -81,12 +74,12 @@
 
     private void LoadMore()
     {
-        if (page is null || page.Results.Count == 0)
+        if (moviePage is null || moviePage.Results.Count == 0)
             return;
 
         offset += 3;
 
-        if (offset >= page.Results.Count)
+        if (offset >= moviePage.Results.Count)
             offset = 0;
     }
 }

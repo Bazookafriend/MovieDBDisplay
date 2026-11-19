@@ -1,0 +1,121 @@
+.genre-page {
+    padding-bottom: 2rem;
+}
+
+.page-header {
+    margin-bottom: 1.5rem;
+}
+
+    .page-header h1 {
+        margin: 0 0 0.35rem;
+        font-size: 1.9rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+    }
+
+.page-subtitle {
+    margin: 0;
+    font-size: 0.9rem;
+    color: rgba(231, 235, 240, 0.55);
+}
+
+.movie-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.5rem 1rem;
+}
+
+@media (max-width: 1100px) {
+    .movie-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .movie-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    margin-top: 2.25rem;
+}
+
+.page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.25rem;
+    height: 2.25rem;
+    padding: 0 0.65rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: rgba(231, 235, 240, 0.75);
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.5rem;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+    .page-link:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .page-link.active {
+        color: #8ee8ff;
+        background: rgba(1, 180, 228, 0.16);
+        border-color: rgba(1, 180, 228, 0.45);
+        font-weight: 600;
+    }
+
+    .page-link.disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+
+.page-ellipsis {
+    padding: 0 0.2rem;
+    color: rgba(231, 235, 240, 0.45);
+}
+
+.state-message {
+    margin: 0;
+    padding: 0.75rem 0;
+    color: rgba(231, 235, 240, 0.55);
+}
+
+.retry-button {
+    padding: 0;
+    color: #7fd8f5;
+    background: none;
+    border: none;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.movie-skeleton {
+    aspect-ratio: 2 / 3;
+    border-radius: 0.5rem;
+    background: linear-gradient(100deg, #1a1f2b 30%, #232a36 50%, #1a1f2b 70%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s linear infinite;
+}
+
+@keyframes shimmer {
+    from {
+        background-position: 200% 0;
+    }
+
+    to {
+        background-position: -200% 0;
+    }
+}

@@ -23,5 +23,8 @@ namespace DTO
 
         [JsonIgnore]
         public bool HasNextPage => Page < TotalPages;
+
+        [JsonIgnore]
+        public string TotalCountLabel => TotalResults >= 20001 ? "20,000+ movies" : $"{TotalResults:N0} movies";
     }
 }

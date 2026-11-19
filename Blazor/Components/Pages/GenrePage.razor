@@ -1,0 +1,197 @@
+﻿@page "/movies"
+@inject TMDBServiceAccess TmdbService
+@inject IJSRuntime JS
+
+<PageTitle>@(genreName ?? "Movies") · MovieDB</PageTitle>
+
+<div class="genre-page">
+    @if (GenreId is null or <= 0)
+    {
+        <h1>Movies</h1>
+        <p class="state-message">
+            Pick a genre from the <a href="/">home page</a> to browse its movies.
+        </p>
+    }
+    else if (genreNotFound && !isLoading)
+    {
+        <h1>Genre not found</h1>
+        <p class="state-message">That genre doesn't exist. <a href="/">Back to genres</a>.</p>
+    }
+    else
+    {
+        <header class="page-header">
+            <h1>@(genreName ?? "Movies")</h1>
+            @if (results is not null)
+            {
+                <p class="page-subtitle">
+                    @results.TotalCountLabel · Page @CurrentPage of @LastPage
+                </p>
+            }
+        </header>
+
+        @if (isLoading)
+        {
+            <div class="movie-grid">
+                @for (var i = 0; i < 12; i++)
+                {
+                    <div class="movie-skeleton"></div>
+                }
+            </div>
+        }
+        else if (hasError)
+        {
+            <p class="state-message">
+                Couldn't load movies.
+                <button type="button" class="retry-button" @onclick="LoadAsync">Try again</button>
+            </p>
+        }
+        else if (results is null || results.Results.Count == 0)
+        {
+            <p class="state-message">No movies found on this page.</p>
+        }
+        else
+        {
+            <div class="movie-grid">
+                @foreach (var movie in results.Results)
+                {
+                    <MovieCard Movie="movie" @key="movie.Id" />
+                }
+            </div>
+
+            @if (LastPage > 1)
+            {
+                <nav class="pager" aria-label="Pagination">
+                    @if (CurrentPage > 1)
+                    {
+                        <a class="page-link" href="@PageUrl(CurrentPage - 1)" aria-label="Previous page">‹ Prev</a>
+                    }
+                    else
+                    {
+                        <span class="page-link disabled" aria-disabled="true">‹ Prev</span>
+                    }
+
+                    @foreach (var number in PageNumbers())
+                    {
+                        if (number is null)
+                        {
+                            <span class="page-ellipsis" aria-hidden="true">…</span>
+                        }
+                        else if (number == CurrentPage)
+                        {
+                            <span class="page-link active" aria-current="page">@number</span>
+                        }
+                        else
+                        {
+                            <a class="page-link" href="@PageUrl(number.Value)" aria-label="Page @number">@number</a>
+                        }
+                    }
+
+                    @if (CurrentPage < LastPage)
+                    {
+                        <a class="page-link" href="@PageUrl(CurrentPage + 1)" aria-label="Next page">Next ›</a>
+                    }
+                    else
+                    {
+                        <span class="page-link disabled" aria-disabled="true">Next ›</span>
+                    }
+                </nav>
+            }
+        }
+    }
+</div>
+
+@code {
+    private const int MaxPage = 500;
+
+    [SupplyParameterFromQuery(Name = "genre")]
+    public int? GenreId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "page")]
+    public int RequestedPage { get; set; } = 1;
+
+    private List<GenreDTO>? genres;
+    private MovieListPageDTO? results;
+    private string? genreName;
+    private bool isLoading = true;
+    private bool hasError;
+    private bool genreNotFound;
+
+    private int CurrentPage => Math.Max(1, RequestedPage);
+
+    private int LastPage =>
+        results is null ? 1 : Math.Clamp(results.TotalPages, 1, MaxPage);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!RendererInfo.IsInteractive)
+            return;
+
+        await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (GenreId is null or <= 0)
+        {
+            isLoading = false;
+            genreNotFound = true;
+            return;
+        }
+
+        isLoading = true;
+        hasError = false;
+        genreNotFound = false;
+
+        try
+        {
+            genres ??= await TmdbService.GetAllGenresAsync();
+            genreName = genres.FirstOrDefault(g => g.Id == GenreId)?.Name;
+
+            if (genreName is null)
+            {
+                results = null;
+                genreNotFound = true;
+                return;
+            }
+
+            results = await TmdbService.GetMoviesByGenreAsync(GenreId.Value, CurrentPage);
+        }
+        catch (HttpRequestException)
+        {
+            results = null;
+            hasError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string PageUrl(int page) => $"movies?genre={GenreId}&page={page}";
+
+    private IEnumerable<int?> PageNumbers()
+    {
+        const int window = 2;
+        var last = LastPage;
+        var current = CurrentPage;
+
+        var pages = new SortedSet<int> { 1, last };
+        for (var p = current - window; p <= current + window; p++)
+        {
+            if (p >= 1 && p <= last)
+                pages.Add(p);
+        }
+
+        int? previous = null;
+        foreach (var page in pages)
+        {
+            if (previous is int prev && page - prev > 1)
+                yield return null;
+
+            yield return page;
+            previous = page;
+        }
+    }
+}
